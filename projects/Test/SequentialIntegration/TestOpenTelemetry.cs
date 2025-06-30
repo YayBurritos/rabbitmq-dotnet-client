@@ -305,7 +305,7 @@ namespace Test.SequentialIntegration
         [InlineData(false, true)]
         [InlineData(true, false)]
         [InlineData(false, false)]
-        public async Task TestPublisherAndBasicGetActivityTags(bool useRoutingKeyAsOperationName, bool verifyMessageIdTag)
+        public async Task TestPublisherAndBasicGetActivityTags(bool useRoutingKeyAsOperationName, bool useMessageId)
         {
             var exportedItems = new List<Activity>();
             using var tracer = Sdk.CreateTracerProviderBuilder()
@@ -320,7 +320,7 @@ namespace Test.SequentialIntegration
             string queue = $"queue-{Guid.NewGuid()}";
             const string msg = "for basic.get";
 
-            var basicProps = new BasicProperties() { MessageId = Guid.NewGuid().ToString() };
+            var basicProps = useMessageId ? new BasicProperties() { MessageId = Guid.NewGuid().ToString() } : new BasicProperties();
 
             try
             {
@@ -335,7 +335,7 @@ namespace Test.SequentialIntegration
                 ok = await _channel.QueueDeclarePassiveAsync(queue);
                 Assert.Equal(0u, ok.MessageCount);
                 await Task.Delay(500);
-                AssertActivityData(useRoutingKeyAsOperationName, queue, exportedItems, false, verifyMessageIdTag);
+                AssertActivityData(useRoutingKeyAsOperationName, queue, exportedItems, false, basicProps.MessageId);
             }
             finally
             {
@@ -344,7 +344,7 @@ namespace Test.SequentialIntegration
         }
 
         private void AssertActivityData(bool useRoutingKeyAsOperationName, string queueName,
-            List<Activity> activityList, bool isDeliver = false, bool verifyMessageIdTag = false)
+            List<Activity> activityList, bool isDeliver = false, string messageId = null)
         {
             string childName = isDeliver ? "deliver" : "fetch";
             string childType = isDeliver ? "process" : "receive";
@@ -390,10 +390,10 @@ namespace Test.SequentialIntegration
             AssertStringTagEquals(sendActivity, RabbitMQActivitySource.MessagingOperationType, "send");
             AssertStringTagEquals(sendActivity, RabbitMQActivitySource.MessagingOperationName, "publish");
 
-            if (verifyMessageIdTag)
+            if (messageId is not null)
             {
-                AssertStringTagNotNullOrEmpty(sendActivity, RabbitMQActivitySource.MessageId);
-                AssertStringTagNotNullOrEmpty(receiveActivity, RabbitMQActivitySource.MessageId);
+                AssertStringTagEquals(sendActivity, RabbitMQActivitySource.MessageId, messageId);
+                AssertStringTagEquals(receiveActivity, RabbitMQActivitySource.MessageId, messageId);
             }
         }
     }

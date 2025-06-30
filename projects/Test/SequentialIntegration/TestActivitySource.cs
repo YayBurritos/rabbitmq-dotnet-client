@@ -293,7 +293,7 @@ namespace Test.SequentialIntegration
         [InlineData(false, true)]
         [InlineData(true, false)]
         [InlineData(false, false)]
-        public async Task TestPublisherAndBasicGetActivityTags(bool useRoutingKeyAsOperationName, bool verifyMessageIdTag)
+        public async Task TestPublisherAndBasicGetActivityTags(bool useRoutingKeyAsOperationName, bool useMessageId)
         {
             RabbitMQActivitySource.UseRoutingKeyAsOperationName = useRoutingKeyAsOperationName;
             var activities = new List<Activity>();
@@ -302,7 +302,7 @@ namespace Test.SequentialIntegration
             string queue = $"queue-{Guid.NewGuid()}";
             const string msg = "for basic.get";
 
-            var basicProps = new BasicProperties() { MessageId = Guid.NewGuid().ToString() };
+            var basicProps = useMessageId ? new BasicProperties() { MessageId = Guid.NewGuid().ToString() } : new BasicProperties();
 
             try
             {
@@ -315,7 +315,7 @@ namespace Test.SequentialIntegration
                 ok = await _channel.QueueDeclarePassiveAsync(queue);
                 Assert.Equal(0u, ok.MessageCount);
                 await Task.Delay(500);
-                AssertActivityData(useRoutingKeyAsOperationName, queue, activities, false, verifyMessageIdTag);
+                AssertActivityData(useRoutingKeyAsOperationName, queue, activities, false, basicProps.MessageId);
             }
             finally
             {
@@ -404,7 +404,7 @@ namespace Test.SequentialIntegration
         }
 
         private void AssertActivityData(bool useRoutingKeyAsOperationName, string queueName,
-            List<Activity> activityList, bool isDeliver = false, bool verifyMessageIdTag = false)
+            List<Activity> activityList, bool isDeliver = false, string messageId = null)
         {
             string childName = isDeliver ? "deliver" : "fetch";
             Activity[] activities = activityList.ToArray();
@@ -449,10 +449,10 @@ namespace Test.SequentialIntegration
             AssertIntTagGreaterThanZero(sendActivity, RabbitMQActivitySource.MessagingBodySize);
             AssertIntTagGreaterThanZero(receiveActivity, RabbitMQActivitySource.MessagingBodySize);
 
-            if (verifyMessageIdTag)
+            if (messageId is not null)
             {
-                AssertStringTagNotNullOrEmpty(sendActivity, RabbitMQActivitySource.MessageId);
-                AssertStringTagNotNullOrEmpty(receiveActivity, RabbitMQActivitySource.MessageId);
+                AssertStringTagEquals(sendActivity, RabbitMQActivitySource.MessageId, messageId);
+                AssertStringTagEquals(receiveActivity, RabbitMQActivitySource.MessageId, messageId);
             }
         }
     }
