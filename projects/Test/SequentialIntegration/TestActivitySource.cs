@@ -307,10 +307,14 @@ namespace Test.SequentialIntegration
         }
 
         [Theory]
-        [InlineData(true, true)]
-        [InlineData(true, false)]
-        [InlineData(false, true)]
-        [InlineData(false, false)]
+        [InlineData(true, true, true)]
+        [InlineData(true, true, false)]
+        [InlineData(true, false, true)]
+        [InlineData(true, false, false)]
+        [InlineData(false, true, true)]
+        [InlineData(false, true, false)]
+        [InlineData(false, false, true)]
+        [InlineData(false, false, false)]
         public async Task TestPublisherAndBasicGetActivityTags(bool useRoutingKeyAsOperationName, bool usePublisherAsParent, bool useMessageId)
         {
             RabbitMQActivitySource.UseRoutingKeyAsOperationName = useRoutingKeyAsOperationName;
